@@ -1,8 +1,8 @@
-../Core/Src/main.c:91:6:update_servos	13
-../Core/Src/main.c:133:5:main	1
-../Core/Src/main.c:192:6:SystemClock_Config	3
-../Core/Src/main.c:238:13:MX_TIM2_Init	9
-../Core/Src/main.c:309:13:MX_UART4_Init	2
-../Core/Src/main.c:342:13:MX_GPIO_Init	1
-../Core/Src/main.c:369:6:HAL_UART_RxCpltCallback	3
-../Core/Src/main.c:393:6:Error_Handler	1
+../Core/Src/main.c:104:6:update_servos	13
+../Core/Src/main.c:156:5:main	1
+../Core/Src/main.c:216:6:SystemClock_Config	3
+../Core/Src/main.c:262:13:MX_TIM2_Init	9
+../Core/Src/main.c:333:13:MX_UART4_Init	2
+../Core/Src/main.c:366:13:MX_GPIO_Init	1
+../Core/Src/main.c:393:6:HAL_UART_RxCpltCallback	6
+../Core/Src/main.c:432:6:Error_Handler	1

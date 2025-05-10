@@ -60,8 +60,8 @@ all: main-build
 main-build: fin_controller.elf secondary-outputs
 
 # Tool invocations
-fin_controller.elf fin_controller.map: $(OBJS) $(USER_OBJS) /home/user/Desktop/fin_controller/STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "fin_controller.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/user/Desktop/fin_controller/STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="fin_controller.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+fin_controller.elf fin_controller.map: $(OBJS) $(USER_OBJS) C:\Users\Yasin\OneDrive\Masaüstü\fin_controller\STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "fin_controller.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Yasin\OneDrive\Masaüstü\fin_controller\STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="fin_controller.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

@@ -35,12 +35,25 @@
 #define PWM_CENTER 75
 #define PWM_MIN    50
 #define PWM_MAX    100
-#define DT         0.05f  // 50 ms döngü süresi
-#define CONTROL_MAX 25  // max sapma PWM_CENTER etrafında
+
+float Kp_X  = 0.1f;
+float Ki_X  = 0.0f;
+float Kd_X  = 0.0f;
+
+float Kp_Y  = 0.1f;
+float Ki_Y  = 0.0f;
+float Kd_Y  = 0.0f;
+
+#define DT 0.05f  // 50ms döngü süresi
+#define CONTROL_MAX 25
 #define CONTROL_MIN -25
 #define INTEGRAL_MAX 500
 #define INTEGRAL_MIN -500
+
 #define CLAMP(x, low, high) ((x) < (low) ? (low) : ((x) > (high) ? (high) : (x)))
+
+#define RX_BUFFER_SIZE 64
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -59,20 +72,20 @@ uint8_t rx_indx;
 uint8_t rx_data[20];
 uint8_t rx_buffer[100];
 uint8_t transfer_cplt;
+char uart_buffer[RX_BUFFER_SIZE];
+uint8_t uart_pos = 0;
+
 int bbox_center_x = 0;
 int bbox_center_y = 0;
-// PID katsayıları (deneyerek ayarla)
-float Kp_x = 1.0f, Ki_x = 0.000f, Kd_x = 0.00f;
-float Kp_y = 1.0f, Ki_y = 0.000f, Kd_y = 0.00f;
 
-float integral_x = 0, integral_y = 0;
-float prev_error_x = 0, prev_error_y = 0;
 int pwm_pitch_left;
 int pwm_pitch_right;
 int pwm_roll_up;
 int pwm_roll_down;
-float control_x;
-float control_y;
+
+// PID state
+float integral_x = 0, prev_error_x = 0;
+float integral_y = 0, prev_error_y = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -96,11 +109,20 @@ void update_servos()
     int error_x = setpoint_x - bbox_center_x;
     int error_y = setpoint_y - bbox_center_y;
 
+    // Integrator update
+    integral_x += error_x * DT;
+    integral_y += error_y * DT;
+
     integral_x = CLAMP(integral_x, INTEGRAL_MIN, INTEGRAL_MAX);
     integral_y = CLAMP(integral_y, INTEGRAL_MIN, INTEGRAL_MAX);
 
+    // Derivative
     float derivative_x = (error_x - prev_error_x) / DT;
     float derivative_y = (error_y - prev_error_y) / DT;
+
+    // PID output
+    float control_x = Kp_X * error_x + Ki_X * integral_x + Kd_X * derivative_x;
+    float control_y = Kp_Y * error_y + Ki_Y * integral_y + Kd_Y * derivative_y;
 
     control_x = CLAMP(control_x, CONTROL_MIN, CONTROL_MAX);
     control_y = CLAMP(control_y, CONTROL_MIN, CONTROL_MAX);
@@ -108,7 +130,7 @@ void update_servos()
     prev_error_x = error_x;
     prev_error_y = error_y;
 
-    // PWM merkezden sapma mantığı (±5, ±10 gibi)
+    // Servo PWM hesapla
     pwm_pitch_left  = PWM_CENTER + (int)control_x;
     pwm_pitch_right = PWM_CENTER - (int)control_x;
     pwm_roll_up     = PWM_CENTER + (int)control_y;
@@ -119,6 +141,7 @@ void update_servos()
     pwm_roll_up     = CLAMP(pwm_roll_up,     PWM_MIN, PWM_MAX);
     pwm_roll_down   = CLAMP(pwm_roll_down,   PWM_MIN, PWM_MAX);
 
+    // PWM çıkışı gönder
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pwm_pitch_left);
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, pwm_pitch_right);
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, pwm_roll_up);
@@ -168,7 +191,7 @@ int main(void)
 //  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, 50);
 //  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 120);
 
-  HAL_UART_Receive_IT(&huart4, rx_data, 20);
+  HAL_UART_Receive_IT(&huart4, rx_data, 1);
 
   /* USER CODE END 2 */
 
@@ -181,6 +204,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  update_servos();
 	  HAL_UART_Transmit(&huart4, tx_buffer, 10, 10);
+	  HAL_Delay(50);
   }
   /* USER CODE END 3 */
 }
@@ -368,20 +392,35 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    UNUSED(huart);
+    if (huart->Instance == UART4) {
+        char c = rx_data[0];  // tek karakter alıyoruz
 
-    char *token;
-    token = strtok((char *)rx_data, ",");
-    if (token != NULL) {
-        bbox_center_x = atoi(token);
-        token = strtok(NULL, ",");
-        if (token != NULL) {
-            bbox_center_y = atoi(token);
+        if (c == '\n') {
+            uart_buffer[uart_pos] = '\0';  // string sonu
+            uart_pos = 0;
+
+            // Şimdi buffer'ı parse edelim
+            char *token;
+            token = strtok(uart_buffer, ",");
+            if (token != NULL) {
+                bbox_center_x = atoi(token);
+                token = strtok(NULL, ",");
+                if (token != NULL) {
+                    bbox_center_y = atoi(token);
+                }
+            }
+
+            // NOT: Raspberry'e geri bir şey göndermiyoruz, burası boş
         }
-    }
+        else {
+            if (uart_pos < RX_BUFFER_SIZE - 1) {
+                uart_buffer[uart_pos++] = c;
+            }
+        }
 
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-    HAL_UART_Receive_IT(&huart4, rx_data, 20);
+        // Sonraki karakter için interrupt’ı tekrar başlat
+        HAL_UART_Receive_IT(&huart4, rx_data, 1);
+    }
 }
 
 /* USER CODE END 4 */
